@@ -5,34 +5,33 @@
 #include <Eigen/Dense>
 #include <cstddef>
 
+namespace husky {
+
 using Eigen::Matrix;
 using namespace std;
 
 template<typename type, size_t N, size_t bound>
-class BoxQP
-{
+class BoxQP {
 public:
-  typedef Matrix<type, N, N> BoxQPMatrixNd ;
-  typedef Matrix<type, N, 1> BoxQPVectorNd ;
+  typedef Matrix<type, N, N> BoxQPMatrixNd;
+  typedef Matrix<type, N, 1> BoxQPVectorNd;
   typedef Matrix<type, 1, 1> BoxQPScalar;
 
 
   static BoxQPVectorNd minMaxVector(const BoxQPVectorNd &upper,
                                     const BoxQPVectorNd &lower,
-                                    const BoxQPVectorNd &y)
-  {
+                                    const BoxQPVectorNd &y) {
     BoxQPVectorNd c_res;
 
-    for (int i = 0; i < N; i++)
-    {
+    for (int i = 0; i < N; i++) {
       c_res(i) = max(lower(i), min(upper(i), y(i)));
     }
 
     return c_res;
   }
-  static Matrix<type, -1, -1> HFreeMatrix(const BoxQPMatrixNd& H,
-                                          const BoxQPVectorNd& free)
-  {
+
+  static Matrix<type, -1, -1> HFreeMatrix(const BoxQPMatrixNd &H,
+                                          const BoxQPVectorNd &free) {
 
     int sum = static_cast<int>(free.sum());
 
@@ -40,19 +39,17 @@ public:
     Matrix<type, -1, N> H_temp1(sum, N);
 
     int j = 0;
-    int n = (int)H.cols();
-    int m = (int)H_temp1.rows();
+    int n = (int) H.cols();
+    int m = (int) H_temp1.rows();
 
-    for (int i = 0; i < n; i++)
-    {
+    for (int i = 0; i < n; i++) {
       if (free(i)) {
         H_temp1.row(j) = H.row(i);
         j++;
       }
     }
     j = 0;
-    for (int i = 0; i < n; i++)
-    {
+    for (int i = 0; i < n; i++) {
       if (free(i)) {
         H_res.col(j) = H_temp1.col(i);
         j++;
@@ -61,15 +58,15 @@ public:
 
     return H_res;
   }
+
   static Matrix<type, -1, 1> grad_free(const BoxQPVectorNd &g,
-                                       const BoxQPVectorNd &free)
-  {
+                                       const BoxQPVectorNd &free) {
     int sum = static_cast<int>(free.sum());
 
     Matrix<type, -1, 1> g_res(sum);
 
     int j = 0;
-    int n = (int)g.size();
+    int n = (int) g.size();
     for (int i = 0; i < n; i++)
       if (free(i) == true) {
         g_res(j) = g(i);
@@ -78,12 +75,12 @@ public:
 
     return g_res;
   }
+
   static Matrix<type, -1, 1> search_free(const Matrix<type, -1, -1> &H_free,
                                          const BoxQPVectorNd &grad,
                                          const BoxQPVectorNd &x,
-                                         const BoxQPVectorNd &free)
-  {
-    int n = (int)x.size();
+                                         const BoxQPVectorNd &free) {
+    int n = (int) x.size();
     int sum = static_cast<int>(free.sum());
     BoxQPVectorNd search;
     Matrix<type, -1, 1> x_free(sum), grad_free(sum), search_temp;
@@ -104,9 +101,9 @@ public:
       }
 
     search_temp = -1.0 * H_free.inverse() *
-        ((H_free.transpose()).inverse()*grad_free) - x_free;
+                  ((H_free.transpose()).inverse() * grad_free) - x_free;
     j = 0;
-    for (int i = 0; i< n; i++)
+    for (int i = 0; i < n; i++)
       if (free(i)) {
         search(i) = search_temp(j);
         j++;
@@ -117,9 +114,8 @@ public:
 
   static void boxQP(const BoxQPMatrixNd &H, const BoxQPVectorNd &g,
                     const BoxQPVectorNd &lower, const BoxQPVectorNd &upper,
-                    const BoxQPVectorNd &x0, BoxQPVectorNd& x,
-                    int& result, Matrix<type, -1, -1,0,bound,bound>& Hfree, BoxQPVectorNd& free)
-  {
+                    const BoxQPVectorNd &x0, BoxQPVectorNd &x,
+                    int &result, Matrix<type, -1, -1, 0, bound, bound> &Hfree, BoxQPVectorNd &free) {
     //inputs:
     //   H - positive definite matrix(n * n)
     //g - bias vector(n)
@@ -138,8 +134,8 @@ public:
     double minGrad = 1e-8;
     double minRelImprove = 1e-8;
     double stepDec = 0.6;
-    double	minStep = 1e-22;
-    double	Armijo = 0.1;
+    double minStep = 1e-22;
+    double Armijo = 0.1;
     double sdotg = 0.0;
     bool factorize = false;
 
@@ -155,7 +151,7 @@ public:
     Hfree.setZero();
 
     /// clamped ///
-    x = minMaxVector(upper,lower,x0);
+    x = minMaxVector(upper, lower, x0);
 
     /// Start Box-QP ///
     BoxQPScalar value;
@@ -167,7 +163,7 @@ public:
       if (result != 0)
         break;
 
-      if (iter > 1 && (oldvalue - value(0)) < minRelImprove*abs(oldvalue)) {
+      if (iter > 1 && (oldvalue - value(0)) < minRelImprove * abs(oldvalue)) {
         result = 4;
         break;
       }
@@ -175,10 +171,9 @@ public:
       old_clamped = clamped;
       clamped.setZero();
 
-      grad = g + H*x;
+      grad = g + H * x;
 
-      for (int i = 0; i < n; i++)
-      {
+      for (int i = 0; i < n; i++) {
         if (x(i) == upper(i) && grad(i) < 0.0)
           clamped(i) = true;
         if (x(i) == lower(i) && grad(i) > 0.0)
@@ -194,8 +189,7 @@ public:
 
       if (iter == 1)
         factorize = true;
-      else
-      {
+      else {
         if (old_clamped != clamped)
           factorize = true;
         else
@@ -203,15 +197,13 @@ public:
       }
 
       /// for eq. (15)
-      if (factorize)
-      {
-        Eigen::LLT< Matrix<type, -1, -1> > chol(HFreeMatrix(H, free));
+      if (factorize) {
+        Eigen::LLT<Matrix<type, -1, -1> > chol(HFreeMatrix(H, free));
         Hfree = chol.matrixL().transpose();
         chol_info = chol.info();
 
         //Hfree = R;
-        if (chol_info)
-        {
+        if (chol_info) {
           result = -1;
           break;
         }
@@ -246,14 +238,14 @@ public:
       step = 1;
       nstep = 0;
 
-      xc = minMaxVector(upper, lower, x + step*search);
-      vc = xc.transpose() * g + 0.5*xc.transpose() * H * xc;
+      xc = minMaxVector(upper, lower, x + step * search);
+      vc = xc.transpose() * g + 0.5 * xc.transpose() * H * xc;
 
-      while ((vc(0) - oldvalue) / (step*sdotg) < Armijo) {
-        step = step*stepDec;
+      while ((vc(0) - oldvalue) / (step * sdotg) < Armijo) {
+        step = step * stepDec;
         nstep = nstep + 1;
-        xc = minMaxVector(upper, lower, x + step*search);
-        vc = xc.transpose() * g + 0.5*xc.transpose() * H * xc;
+        xc = minMaxVector(upper, lower, x + step * search);
+        vc = xc.transpose() * g + 0.5 * xc.transpose() * H * xc;
         if (step < minStep) {
           result = 2;
           break;
@@ -300,5 +292,7 @@ public:
 
   }
 };
+
+}  // namespace husky
 
 #endif

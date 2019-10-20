@@ -3,34 +3,35 @@
 #include <random>
 
 #include "controller_1d.h"
+#include "controller_bicycle_model.h"
 
+
+constexpr int control_horizon = 300;
+constexpr double control_freq = 100.0;
 
 double time_now() {
   return std::chrono::time_point_cast<std::chrono::duration<double>>(
       std::chrono::system_clock::now()).time_since_epoch().count();
 }
 
-double noise(double mean, double stddev) {
-  std::normal_distribution dist(mean, stddev);
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  return dist(gen);
-}
+// double noise(double mean, double stddev) {
+//   std::normal_distribution dist(mean, stddev);
+//   std::random_device rd;
+//   std::mt19937 gen(rd());
+//   return dist(gen);
+// }
 
-int main() {
-  constexpr int control_horizon = 30;
-  constexpr double control_freq = 3.0;
-
+std::tuple<Eigen::MatrixXd, Eigen::MatrixXd> plan_1d() {
   Controller1D controller(1.0 / control_freq);
 
-  Matrix<double, 2, 1> state, init_state, desired_state;
+  Controller1D::VectorX init_state, desired_state;
   init_state << 1, 0;
   desired_state << 0, 0;
 
-  MatrixXd init_control(1, control_horizon);
+  Eigen::MatrixXd init_control(1, control_horizon);
   init_control.setZero();
 
-  MatrixXd control_limit(1, 2);
+  Eigen::MatrixXd control_limit(1, 2);
   control_limit << -1, 1;
 
   controller.init(init_state, init_control, control_horizon);
@@ -38,17 +39,48 @@ int main() {
   controller.setInputConstraint(control_limit);
   controller.setVerboseLevel(controller.vbl_info);
 
-  double t0 = time_now();
   controller.plan();
+
+  return std::make_tuple(controller.getPlannedStateMatrix(), controller.getPlannedControlInputMatrix());
+}
+
+std::tuple<Eigen::MatrixXd, Eigen::MatrixXd> plan_2d() {
+  ControllerBicycleModel controller(1.0 / control_freq);
+
+  ControllerBicycleModel::VectorX init_state, desired_state;
+  init_state.setZero();
+  desired_state.setZero();
+  desired_state(3) = 3.0;  // speed_target
+
+  Eigen::MatrixXd init_control(ControllerBicycleModel::VectorU{}.rows(), control_horizon);
+  init_control.setZero();
+
+  Eigen::MatrixXd control_limit(2, 2);
+  control_limit << -1, 1,
+      -0.3, 0.3;
+
+  controller.init(init_state, init_control, control_horizon);
+  controller.setDesiredState(desired_state);
+  controller.setInputConstraint(control_limit);
+  controller.setVerboseLevel(controller.vbl_info);
+
+  controller.plan();
+
+  return std::make_tuple(controller.getPlannedStateMatrix(), controller.getPlannedControlInputMatrix());
+}
+
+int main() {
+
+  double t0 = time_now();
+  auto[plan, control_inputs] = plan_2d();
   double plan_time = time_now() - t0;
 
   std::cout << "planned in " << plan_time << " sec" << std::endl;
 
-  const MatrixXd& plan = controller.getPlannedStateMatrix();
-  const MatrixXd& control_inputs = controller.getPlannedControlInputMatrix();
-
   for (int i = 0; i < control_horizon; i++) {
-    std::cout << std::fixed << "time " << i / control_freq << " pos " << plan(0,i) << " vel " << plan(1,i) << " control " << control_inputs(i) << std::endl;
+    std::cout << std::fixed << "time " << i / control_freq << std::endl;
+    std::cout << "state" << std::endl << plan.col(i).transpose() << std::endl;
+    std::cout << "control" << std::endl << control_inputs.col(i).transpose() << std::endl;
   }
 
   return 0;

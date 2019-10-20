@@ -2,7 +2,7 @@
 
 #include <ilqg/ilqg.h>
 
-class Controller1D : public iLQG<double, 2, 1> {
+class Controller1D : public husky::iLQG<double, 2, 1> {
 private:
   double dt_;
 
