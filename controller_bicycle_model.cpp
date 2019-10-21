@@ -1,5 +1,16 @@
 #include "controller_bicycle_model.h"
 
+double angle_dist(double theta0, double theta1) {
+  double best = theta1 - theta0;
+  while (std::abs(best - 2 * M_PI) < std::abs(best)) {
+    best -= 2 * M_PI;
+  }
+  while (std::abs(best + 2 * M_PI) < std::abs(best)) {
+    best += 2 * M_PI;
+  }
+  return best;
+}
+
 const ControllerBicycleModel::VectorX ControllerBicycleModel::dynamicsCalc(const VectorX &x, const VectorU &u) {
   double control_accel = u(0);
   double steering_angle = u(1);
@@ -13,12 +24,12 @@ const ControllerBicycleModel::VectorX ControllerBicycleModel::dynamicsCalc(const
 
   double front_wheel_slip_angle = 0;
   double rear_wheel_slip_angle = 0;
-  if (forward_vel + lateral_vel > 0.001) {
+  if (std::abs(forward_vel) + std::abs(lateral_vel) > 0.0001) {
     double rear_wheel_lateral_vel = lateral_vel + -1 * wheelbase_rear_ * rotation_rate;
-    rear_wheel_slip_angle = std::atan2(rear_wheel_lateral_vel, forward_vel);
+    rear_wheel_slip_angle = angle_dist(0, std::atan2(rear_wheel_lateral_vel, forward_vel));
 
     double front_wheel_lateral_vel = lateral_vel + wheelbase_front_ * rotation_rate;
-    front_wheel_slip_angle = std::atan2(front_wheel_lateral_vel, forward_vel) - steering_angle;
+    front_wheel_slip_angle = angle_dist(steering_angle, std::atan2(front_wheel_lateral_vel, forward_vel));
   }
 
   double cornering_force_rear = -1 * cornering_stiffness_ * rear_wheel_slip_angle;
@@ -42,6 +53,9 @@ const ControllerBicycleModel::VectorX ControllerBicycleModel::dynamicsCalc(const
 
   double new_rotation_rate = rotation_rate + rotation_accel * dt_;
   double new_heading = heading + rotation_rate * dt_ + 0.5 * rotation_accel * dt_ * dt_;
+  if (new_heading >= 2 * M_PI) {
+    new_heading -= 2 * M_PI;
+  }
 
   VectorX out;
   out(0) = new_global_x;
@@ -54,5 +68,8 @@ const ControllerBicycleModel::VectorX ControllerBicycleModel::dynamicsCalc(const
 }
 
 double ControllerBicycleModel::costFunction(const VectorX &x, const VectorU &u, size_t index) {
-  return std::pow(x(3), 2) + 0 * std::pow(u(0), 2);
+  double speed_target = xd_(3);
+  double speed_cost = std::pow(x(3) - speed_target, 2);
+  double control_cost = u.transpose() * u;
+  return 20 * speed_cost + 1 * control_cost;
 }

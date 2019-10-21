@@ -32,7 +32,7 @@ public:
       , rotational_inertia_(0.4)
       , wheelbase_front_(0.3)
       , wheelbase_rear_(0.2)
-      , cornering_stiffness_(100.0)
+      , cornering_stiffness_(50.0)
   {}
 
   const VectorX dynamicsCalc(const VectorX &x, const VectorU &u) override;

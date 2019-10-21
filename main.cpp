@@ -1,25 +1,17 @@
 #include <iostream>
 #include <chrono>
-#include <random>
 
 #include "controller_1d.h"
 #include "controller_bicycle_model.h"
 
 
-constexpr int control_horizon = 300;
+constexpr int control_horizon = 500;
 constexpr double control_freq = 100.0;
 
 double time_now() {
   return std::chrono::time_point_cast<std::chrono::duration<double>>(
       std::chrono::system_clock::now()).time_since_epoch().count();
 }
-
-// double noise(double mean, double stddev) {
-//   std::normal_distribution dist(mean, stddev);
-//   std::random_device rd;
-//   std::mt19937 gen(rd());
-//   return dist(gen);
-// }
 
 std::tuple<Eigen::MatrixXd, Eigen::MatrixXd> plan_1d() {
   Controller1D controller(1.0 / control_freq);
@@ -48,9 +40,13 @@ std::tuple<Eigen::MatrixXd, Eigen::MatrixXd> plan_2d() {
   ControllerBicycleModel controller(1.0 / control_freq);
 
   ControllerBicycleModel::VectorX init_state, desired_state;
-  init_state.setZero();
+  // init_state.setZero();
+  // init_state(3) = 0.0;
+  init_state << 0, 0, 0, 1.0, -0.2, 1.0;
   desired_state.setZero();
   desired_state(3) = 3.0;  // speed_target
+
+  std::cout << "desired state " << desired_state.transpose() << std::endl;
 
   Eigen::MatrixXd init_control(ControllerBicycleModel::VectorU{}.rows(), control_horizon);
   init_control.setZero();
@@ -62,7 +58,7 @@ std::tuple<Eigen::MatrixXd, Eigen::MatrixXd> plan_2d() {
   controller.init(init_state, init_control, control_horizon);
   controller.setDesiredState(desired_state);
   controller.setInputConstraint(control_limit);
-  controller.setVerboseLevel(controller.vbl_info);
+  controller.setVerboseLevel(controller.vbl_verbose);
 
   controller.plan();
 

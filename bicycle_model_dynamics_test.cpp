@@ -4,13 +4,13 @@
 
 
 int main() {
-  ControllerBicycleModel controller(0.01);
+  ControllerBicycleModel controller(0.1);
 
   ControllerBicycleModel::VectorX x0;
-  x0 << 0, 0, 0, 0, 0, 0;
+  x0 << 0, 0, 0, 0.5, 0, 0;
 
   ControllerBicycleModel::VectorU u;
-  u << 1.0, 0.1;
+  u << 0.5, 0.05;
 
   for (int t = 0; t < 1000; t++) {
     auto x1 = controller.dynamicsCalc(x0, u);
